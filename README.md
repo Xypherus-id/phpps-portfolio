@@ -1,0 +1,10 @@
+# PHPPS Holistic Student Portfolio: Prototype
+
+A prototype of a P1 to P6 student portfolio for one class (4F1) with fictional data, built on Google Sheets and Apps Script. The brief and all agreed decisions are in `CLAUDE.md`.
+
+| Folder | Contents |
+| --- | --- |
+| `apps-script/` | The web app. These files are pasted into the Script editor of the Google Sheet. |
+| `seed/` | The fictional data generator and the Excel file it produces. |
+| `docs/SETUP.md` | Step by step set-up in Google. |
+| `dev/` | A local harness that runs the same script files for automated tests (`npm test`) and screenshots (`npm run dev`). |

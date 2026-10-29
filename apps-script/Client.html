@@ -1,0 +1,154 @@
+<script>
+  // Client.html: runs in the browser. It only displays what the server returns;
+  // every permission decision is made on the server in Access.gs.
+
+  var state = { boot: null, viewAs: null };
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(v) {
+    return String(v === null || v === undefined ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Calls a server function and returns a Promise.
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[fn].apply(runner, args);
+    });
+  }
+
+  function showError(err) {
+    $('main').innerHTML = '<div class="error">' + esc(err && err.message ? err.message : err) + '</div>';
+  }
+
+  function remember(viewAs) {
+    try { sessionStorage.setItem('viewAs', JSON.stringify(viewAs)); } catch (e) { /* storage unavailable */ }
+  }
+
+  function recall() {
+    try { return JSON.parse(sessionStorage.getItem('viewAs') || 'null'); } catch (e) { return null; }
+  }
+
+  function fillPeople(role, chosenId) {
+    var people = state.boot.people[role] || [];
+    $('personSelect').innerHTML = people.map(function (p) {
+      return '<option value="' + esc(p.id) + '"' + (p.id === chosenId ? ' selected' : '') + '>' + esc(p.label) + '</option>';
+    }).join('');
+  }
+
+  function onSwitch() {
+    state.viewAs = { role: $('roleSelect').value, id: $('personSelect').value };
+    remember(state.viewAs);
+    load();
+  }
+
+  function init() {
+    call('api_bootstrap').then(function (boot) {
+      state.boot = boot;
+      if (boot.setupProblems.length) {
+        $('setupWarning').hidden = false;
+        $('setupWarning').innerHTML = '<b>The Sheet is not set up correctly.</b><br>' + boot.setupProblems.map(esc).join('<br>');
+      }
+      var saved = recall();
+      var role = saved && boot.people[saved.role] ? saved.role : 'Form Teacher';
+      $('roleSelect').innerHTML = boot.roles.map(function (r) {
+        return '<option value="' + esc(r.value) + '"' + (r.value === role ? ' selected' : '') + '>' + esc(r.label) + '</option>';
+      }).join('');
+      fillPeople(role, saved && saved.role === role ? saved.id : null);
+      $('roleSelect').onchange = function () { fillPeople($('roleSelect').value); onSwitch(); };
+      $('personSelect').onchange = onSwitch;
+      onSwitch();
+    }).catch(showError);
+  }
+
+  function load() {
+    $('main').innerHTML = '<p class="loading">Loading...</p>';
+    call('api_listStudents', state.viewAs).then(function (res) {
+      if (res.user.role === 'Student') renderStudentHome(res); else renderStaffHome(res);
+    }).catch(showError);
+  }
+
+  function accessChips(access) {
+    return '<div class="chips">' + access.map(function (a) {
+      var cls = a.area === 'Export' ? (a.code === 'None' ? 'chip-None' : 'chip-export') : 'chip-' + a.code;
+      return '<span class="chip ' + cls + '"><b>' + esc(a.area) + ':</b> ' + esc(a.label) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function renderStaffHome(res) {
+    var html = '';
+    html += '<div class="grid">';
+    html += '<div class="card"><div class="kicker">Viewing as</div><h2>' + esc(res.user.name) + '</h2>' +
+            '<div class="muted">' + esc(res.roleLabel) + '</div></div>';
+    html += '<div class="card"><div class="kicker">Scope</div><h2>' + esc(res.scope) + '</h2>' +
+            '<div class="muted">Decided on the server from the StaffRoles tab.</div></div>';
+    html += '<div class="card"><div class="kicker">Students visible</div><div class="big">' + res.rows.length + '</div></div>';
+    html += '</div>';
+
+    html += '<div class="card section-gap"><h2>What this role can do</h2>' +
+            '<div class="muted">From the access matrix. Later milestones enforce each of these on the server.</div>' +
+            accessChips(res.access) + '</div>';
+
+    html += '<div class="card section-gap">';
+    html += '<div class="toolbar"><h2>Students</h2><input id="filter" type="search" placeholder="Search by name or ID" aria-label="Search students"></div>';
+    if (res.supportFlagsVisible) {
+      html += '<p class="restricted">Support flags are restricted information. Only the Year Head, SENO and School Leader can see this column.</p>';
+    }
+    if (!res.rows.length) {
+      html += '<p class="muted">No students fall within this scope.</p>';
+    } else {
+      html += '<div class="table-wrap"><table><thead><tr>' +
+        res.columns.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') +
+        '</tr></thead><tbody id="rows">' +
+        res.rows.map(function (r) {
+          var text = (r.student_id + ' ' + r.display_name).toLowerCase();
+          return '<tr data-text="' + esc(text) + '">' + res.columns.map(function (c) {
+            var v = r[c.key];
+            if (c.key === 'status') v = '<span class="tag">' + esc(v) + '</span>';
+            else if (c.key === 'support_flags') v = v ? '<span class="restricted">' + esc(v) + '</span>' : '<span class="muted">None</span>';
+            else v = esc(v);
+            return '<td>' + v + '</td>';
+          }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    html += '</div>';
+    $('main').innerHTML = html;
+
+    var f = $('filter');
+    if (f) f.oninput = function () {
+      var q = f.value.trim().toLowerCase();
+      Array.prototype.forEach.call(document.querySelectorAll('#rows tr'), function (tr) {
+        tr.hidden = q && tr.getAttribute('data-text').indexOf(q) < 0;
+      });
+    };
+  }
+
+  var SECTION_INFO = [
+    ['About Me', 'A', 'What you are good at, what you enjoy and the values you care about.'],
+    ['My Goals', 'G', 'Your learning, character and personal goals for this year.'],
+    ['Check-ins', 'C', 'Tell us how you are feeling each term.'],
+    ['My Learning', 'L', 'Your subject targets, your results and what you learnt from them.'],
+    ['My Growth', 'P', 'Photos and records of things you are proud of.'],
+    ['Feedback', 'F', 'Comments from your teachers.']
+  ];
+
+  function renderStudentHome(res) {
+    var me = res.rows[0] || {};
+    var html = '<div class="hero"><div class="kicker" style="color:#dbe7f3">My Portfolio</div>' +
+      '<h1>Hello, ' + esc(me.display_name) + '</h1>' +
+      '<div>Class ' + esc(me['class']) + ' &middot; ' + esc(me.student_id) + '</div></div>';
+    html += '<div class="grid section-gap">' + SECTION_INFO.map(function (s) {
+      return '<div class="card section-card"><div class="icon">' + s[1] + '</div><h3>' + esc(s[0]) + '</h3>' +
+        '<div class="muted">' + esc(s[2]) + '</div></div>';
+    }).join('') + '</div>';
+    html += '<div class="card section-gap"><h2>What a student can do</h2>' +
+      '<div class="muted">Students see only their own portfolio. The server returned ' + res.rows.length +
+      ' student record for this login.</div>' + accessChips(res.access) + '</div>';
+    $('main').innerHTML = html;
+  }
+
+  init();
+</script>

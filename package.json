@@ -1,0 +1,9 @@
+{
+  "name": "phpps-portfolio-prototype",
+  "private": true,
+  "scripts": {
+    "test": "node --test dev/test.js",
+    "dev": "node dev/server.js 8080",
+    "seed": "python3 seed/generate_seed.py"
+  }
+}

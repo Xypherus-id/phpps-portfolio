@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">P</span>
+      <div>
+        <div class="brand-title">PHPPS Student Portfolio</div>
+        <div class="brand-sub">Prototype with fictional data only</div>
+      </div>
+    </div>
+    <div class="switcher" aria-label="Role switcher">
+      <label for="roleSelect">View as</label>
+      <select id="roleSelect"></select>
+      <select id="personSelect" aria-label="Person"></select>
+    </div>
+  </header>
+
+  <div id="setupWarning" class="banner banner-warn" hidden></div>
+
+  <main id="main">
+    <p class="loading">Loading the portfolio data...</p>
+  </main>
+
+  <footer class="foot">
+    Prototype only. There is no real sign-in: the role switcher stands in for Google sign-in, and the server checks every request against the access matrix.
+  </footer>
+
+  <?!= include('Client'); ?>
+</body>
+</html>
