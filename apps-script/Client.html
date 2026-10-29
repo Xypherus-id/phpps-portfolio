@@ -66,9 +66,11 @@
 
   function load() {
     $('main').innerHTML = '<p class="loading">Loading...</p>';
-    call('api_listStudents', state.viewAs).then(function (res) {
-      if (res.user.role === 'Student') renderStudentHome(res); else renderStaffHome(res);
-    }).catch(showError);
+    if (state.viewAs.role === 'Student') {
+      call('api_getMyPortfolio', state.viewAs).then(Student.show).catch(showError);
+      return;
+    }
+    call('api_listStudents', state.viewAs).then(renderStaffHome).catch(showError);
   }
 
   function accessChips(access) {
@@ -124,30 +126,6 @@
         tr.hidden = q && tr.getAttribute('data-text').indexOf(q) < 0;
       });
     };
-  }
-
-  var SECTION_INFO = [
-    ['About Me', 'A', 'What you are good at, what you enjoy and the values you care about.'],
-    ['My Goals', 'G', 'Your learning, character and personal goals for this year.'],
-    ['Check-ins', 'C', 'Tell us how you are feeling each term.'],
-    ['My Learning', 'L', 'Your subject targets, your results and what you learnt from them.'],
-    ['My Growth', 'P', 'Photos and records of things you are proud of.'],
-    ['Feedback', 'F', 'Comments from your teachers.']
-  ];
-
-  function renderStudentHome(res) {
-    var me = res.rows[0] || {};
-    var html = '<div class="hero"><div class="kicker" style="color:#dbe7f3">My Portfolio</div>' +
-      '<h1>Hello, ' + esc(me.display_name) + '</h1>' +
-      '<div>Class ' + esc(me['class']) + ' &middot; ' + esc(me.student_id) + '</div></div>';
-    html += '<div class="grid section-gap">' + SECTION_INFO.map(function (s) {
-      return '<div class="card section-card"><div class="icon">' + s[1] + '</div><h3>' + esc(s[0]) + '</h3>' +
-        '<div class="muted">' + esc(s[2]) + '</div></div>';
-    }).join('') + '</div>';
-    html += '<div class="card section-gap"><h2>What a student can do</h2>' +
-      '<div class="muted">Students see only their own portfolio. The server returned ' + res.rows.length +
-      ' student record for this login.</div>' + accessChips(res.access) + '</div>';
-    $('main').innerHTML = html;
   }
 
   init();

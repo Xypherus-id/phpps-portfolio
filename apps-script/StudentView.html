@@ -1,0 +1,373 @@
+<script>
+  // StudentView.html: the child-friendly portfolio. Uses call(), esc() and $() from Client.html.
+  // The server decides what may be saved; this page only collects answers and shows results.
+
+  var Student = (function () {
+    var port = null;      // the portfolio returned by the server
+    var current = null;   // the open section, or null for the home page
+    var confirmSend = false;
+
+    var SECTION_STYLE = {
+      'About Me':    { color: '#2c6aa0', blurb: 'What you are good at, what you enjoy and the values you care about.',
+                       icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>' },
+      'My Goals':    { color: '#c2571a', blurb: 'Your learning, character and personal goals, and your score targets.',
+                       icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>' },
+      'Check-ins':   { color: '#b0306a', blurb: 'Tell your teachers how you are feeling this term.',
+                       icon: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>' },
+      'My Learning': { color: '#2e7d4f', blurb: 'Your results, and what you learnt from them.',
+                       icon: '<path d="M4 5h7a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-7a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h7z"/>' },
+      'My Growth':   { color: '#6a43a8', blurb: 'Photos and records of things you are proud of.',
+                       icon: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-6 7-6 0 4-3 6-7 6z"/><path d="M12 15c0-3-2-5-6-5 0 3 2 5 6 5z"/>' },
+      'Feedback':    { color: '#8a5a00', blurb: 'Comments from your teachers.',
+                       icon: '<path d="M4 5h16v11H9l-5 4z"/>' }
+    };
+
+    function icon(name, size) {
+      return '<svg class="s-icon" width="' + (size || 28) + '" height="' + (size || 28) + '" viewBox="0 0 24 24" fill="none" ' +
+        'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        SECTION_STYLE[name].icon + '</svg>';
+    }
+
+    // Five faces from sad to happy for scale questions.
+    function face(n) {
+      var mouth = { 1: 'M8 17q4-4 8 0', 2: 'M8 16.5q4-2 8 0', 3: 'M8 16h8', 4: 'M8 15.5q4 2 8 0', 5: 'M8 15q4 4 8 0' }[n];
+      return '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>' +
+        '<path d="' + mouth + '"/></svg>';
+    }
+
+    function toast(msg, isError) {
+      Array.prototype.forEach.call(document.querySelectorAll('.s-toast'), function (old) { old.remove(); });
+      var t = document.createElement('div');
+      t.className = 's-toast' + (isError ? ' s-toast-error' : '');
+      t.setAttribute('role', 'status');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, isError ? 6000 : 3000);
+    }
+
+    function fail(err) {
+      busy(false);
+      toast(err && err.message ? err.message : String(err), true);
+    }
+
+    function busy(on) {
+      Array.prototype.forEach.call(document.querySelectorAll('.s-save'), function (b) { b.disabled = on; });
+    }
+
+    // ---------- Home ----------
+
+    function renderHome() {
+      current = null;
+      var st = port.student;
+      var todo = 0;
+      Object.keys(port.sections).forEach(function (n) { todo += port.sections[n].total - port.sections[n].done; });
+      var first = st.display_name.split(' ')[0];
+
+      var html = '<div class="s-hero"><div><div class="s-hero-kicker">My Portfolio ' + port.year + '</div>' +
+        '<h1>Hello, ' + esc(first) + '</h1><div>Class ' + esc(st['class']) + '</div></div>' +
+        '<div class="s-hero-todo">' + (todo ? '<b>' + todo + '</b> thing' + (todo === 1 ? '' : 's') + ' to do' : '<b>All done.</b> Well done!') + '</div></div>';
+
+      html += '<div class="s-tiles">';
+      Object.keys(SECTION_STYLE).forEach(function (name) {
+        var s = port.sections[name];
+        var pct = s.total ? Math.round(100 * s.done / s.total) : 0;
+        var status = name === 'Feedback'
+          ? (s.comments.length ? s.comments.length + ' comment' + (s.comments.length === 1 ? '' : 's') : 'No comments yet')
+          : (s.done >= s.total ? 'All done' : s.done + ' of ' + s.total + ' done');
+        html += '<button class="s-tile" data-section="' + esc(name) + '" style="--c:' + SECTION_STYLE[name].color + '">' +
+          '<span class="s-tile-icon">' + icon(name) + '</span>' +
+          '<span class="s-tile-title">' + esc(name) + '</span>' +
+          '<span class="s-tile-blurb">' + esc(SECTION_STYLE[name].blurb) + '</span>' +
+          (name === 'Feedback' ? '' : '<span class="s-bar"><span style="width:' + pct + '%"></span></span>') +
+          '<span class="s-tile-status' + (name !== 'Feedback' && s.done >= s.total ? ' s-done' : '') + '">' + esc(status) + '</span></button>';
+      });
+      html += '</div>';
+      $('main').innerHTML = html;
+      Array.prototype.forEach.call(document.querySelectorAll('.s-tile'), function (b) {
+        b.onclick = function () { openSection(b.getAttribute('data-section')); };
+      });
+    }
+
+    // ---------- Section pages ----------
+
+    function openSection(name) {
+      current = name;
+      confirmSend = false;
+      var s = port.sections[name];
+      var html = '<button class="s-back" id="sBack">&larr; Back to My Portfolio</button>';
+      html += '<div class="s-head" style="--c:' + SECTION_STYLE[name].color + '">' + icon(name, 34) +
+        '<div><h1>' + esc(name) + '</h1><div class="muted">' + esc(SECTION_STYLE[name].blurb) + '</div></div></div>';
+
+      if (name === 'Check-ins') {
+        html += '<div class="s-note">Thank you for sharing how you feel. If something is worrying you, you can talk to your form teacher or the school counsellor at any time. ' +
+          'Once you send your check-in, you cannot change it.</div>';
+      }
+      if (name === 'My Goals' && s.targets) html += targetsBlock(s.targets);
+      if (name === 'My Learning') html += resultsBlock(s.results);
+      if (name === 'My Growth') html += growthBlock(s);
+      if (name === 'Feedback') html += feedbackBlock(s.comments);
+
+      if (s.items.length) {
+        var byCycle = {};
+        s.items.forEach(function (it) { (byCycle[it.cycle] = byCycle[it.cycle] || []).push(it); });
+        var hasOpen = s.items.some(function (it) { return !it.locked && it.response_type !== 'Photo'; });
+        html += '<form id="sForm" class="s-form">';
+        port.openCycles.forEach(function (cycle) {
+          var items = (byCycle[cycle] || []).filter(function (it) { return it.response_type !== 'Photo'; });
+          if (!items.length) return;
+          html += '<h2 class="s-cycle">' + esc(cycle) + '</h2>' + items.map(questionCard).join('');
+        });
+        if (hasOpen) {
+          var label = name === 'Check-ins' ? 'Send my check-in' : 'Save my answers';
+          html += '<div class="s-actions"><button type="submit" class="s-save s-primary" id="sSubmit">' + label + '</button>' +
+            '<span id="sConfirm" class="s-confirm" hidden>Are you sure? You cannot change your check-in after sending it. ' +
+            '<button type="button" class="s-save s-primary" id="sYes">Yes, send it</button> <button type="button" class="s-link" id="sNo">Not yet</button></span></div>';
+        }
+        html += '</form>';
+      }
+
+      $('main').innerHTML = html;
+      window.scrollTo(0, 0);
+      $('sBack').onclick = renderHome;
+      wireQuestions();
+      if (name === 'My Learning') wireResults();
+      if (name === 'My Growth') wireGrowth();
+    }
+
+    function questionCard(it) {
+      var r = it.response;
+      var id = 'q_' + it.key.replace(/\W/g, '_');
+      var html = '<fieldset class="s-q" data-key="' + esc(it.key) + '" data-type="' + esc(it.response_type) + '">' +
+        '<legend>' + esc(it.prompt_text) + '</legend>';
+      if (it.locked) {
+        var shown = it.response_type === 'Scale' ? 'You chose ' + r.value + ' out of 5'
+          : it.response_type === 'Multiple choice' ? r.value : (r.text || 'You left this blank.');
+        html += '<div class="s-answer">' + esc(shown) + '</div><div class="s-meta">Sent on ' + esc(r.submitted_at) + '</div>';
+        return html + '</fieldset>';
+      }
+      var val = r ? r.value : '', text = r ? r.text : '';
+      if (it.response_type === 'Short text') {
+        html += '<input id="' + id + '" class="s-input" maxlength="200" value="' + esc(text) + '" aria-label="' + esc(it.prompt_text) + '">';
+      } else if (it.response_type === 'Long text') {
+        html += '<textarea id="' + id + '" class="s-input" rows="3" maxlength="1500" aria-label="' + esc(it.prompt_text) + '">' + esc(text) + '</textarea>';
+      } else if (it.response_type === 'Multiple choice') {
+        html += '<div class="s-choices">' + it.options.map(function (o) {
+          return '<label class="s-choice"><input type="radio" name="' + id + '" value="' + esc(o) + '"' + (o === val ? ' checked' : '') + '><span>' + esc(o) + '</span></label>';
+        }).join('') + '</div>';
+      } else if (it.response_type === 'Scale') {
+        html += '<div class="s-scale">' + it.options.map(function (o) {
+          return '<label class="s-face s-face-' + esc(o) + '"><input type="radio" name="' + id + '" value="' + esc(o) + '"' + (o === val ? ' checked' : '') + '>' +
+            face(Number(o)) + '<span>' + esc(o) + '</span></label>';
+        }).join('') + '</div>';
+      }
+      if (r) html += '<div class="s-meta">Saved on ' + esc(r.submitted_at) + '</div>';
+      return html + '</fieldset>';
+    }
+
+    function collectAnswers() {
+      var answers = [];
+      Array.prototype.forEach.call(document.querySelectorAll('#sForm .s-q'), function (fs) {
+        var key = fs.getAttribute('data-key').split('|');
+        var type = fs.getAttribute('data-type');
+        var a = { prompt_code: key[0], cycle: key[1] };
+        if (type === 'Short text' || type === 'Long text') {
+          var el = fs.querySelector('.s-input');
+          if (!el) return;
+          a.text = el.value;
+        } else {
+          var picked = fs.querySelector('input:checked');
+          if (!picked || fs.querySelector('.s-answer')) return;
+          a.value = picked.value;
+        }
+        answers.push(a);
+      });
+      return answers;
+    }
+
+    function wireQuestions() {
+      var form = $('sForm');
+      if (!form) return;
+      var send = function () {
+        busy(true);
+        var targets = current === 'My Goals' && port.sections['My Goals'].targets ? collectTargets() : null;
+        var answers = collectAnswers();
+        (targets ? call('api_saveTargets', state.viewAs, targets) : Promise.resolve()).then(function () {
+          return call('api_saveAnswers', state.viewAs, answers);
+        }).then(function (res) {
+          port = res.portfolio;
+          toast(res.saved || current !== 'Check-ins' ? 'Saved. Well done!' : 'Nothing new to send.');
+          openSection(current);
+        }).catch(fail);
+      };
+      form.onsubmit = function (e) {
+        e.preventDefault();
+        if (current === 'Check-ins') {
+          $('sSubmit').hidden = true;
+          $('sConfirm').hidden = false;
+          return;
+        }
+        send();
+      };
+      if ($('sYes')) $('sYes').onclick = send;
+      if ($('sNo')) $('sNo').onclick = function () { $('sConfirm').hidden = true; $('sSubmit').hidden = false; };
+    }
+
+    // ---------- My Goals: score targets ----------
+
+    function targetsBlock(t) {
+      return '<div class="s-card" id="tBlock"><h2>My score targets for ' + esc(t.assessment) + '</h2>' +
+        '<p class="muted">For each subject, choose a target and write what you will do to reach it. Every target needs a plan.</p>' +
+        '<div class="s-targets">' + t.rows.map(function (r, i) {
+          return '<div class="s-target"><div class="s-target-subj">' + esc(r.subject) + '</div>' +
+            '<label>Target <input class="s-input s-num" type="number" min="0" max="' + r.max_score + '" step="1" data-i="' + i + '" data-f="target_score" value="' + esc(r.target_score) + '" aria-label="' + esc(r.subject) + ' target"> out of ' + r.max_score + '</label>' +
+            '<label class="s-grow">What I will do <input class="s-input" maxlength="300" data-i="' + i + '" data-f="process_goal" value="' + esc(r.process_goal) + '" placeholder="For example: I will practise ten questions every weekend."></label></div>';
+        }).join('') + '</div></div>';
+    }
+
+    // Score targets are saved by the same button as the goals, so nothing typed is lost.
+    function collectTargets() {
+      var rows = port.sections['My Goals'].targets.rows.map(function (r) { return { subject: r.subject }; });
+      Array.prototype.forEach.call(document.querySelectorAll('#tBlock [data-f]'), function (el) {
+        rows[Number(el.getAttribute('data-i'))][el.getAttribute('data-f')] = el.value;
+      });
+      return rows;
+    }
+
+    // ---------- My Learning: results and gap reflections ----------
+
+    function resultsBlock(results) {
+      if (!results.length) return '<div class="s-card muted">Your results will appear here when your teachers have entered them.</div>';
+      return '<h2 class="s-cycle">My results</h2><div class="s-results">' + results.map(function (r) {
+        var max = Number(r.max_score) || 1;
+        var hasTarget = r.target_score !== '';
+        var met = hasTarget && Number(r.actual_score) >= Number(r.target_score);
+        return '<div class="s-card s-result"><div class="s-result-head"><b>' + esc(r.subject) + '</b><span class="muted">' + esc(r.assessment) + '</span></div>' +
+          '<div class="s-score"><span class="s-score-big">' + esc(r.actual_score) + '</span> out of ' + esc(r.max_score) + '</div>' +
+          '<div class="s-meter" aria-hidden="true"><span class="s-meter-fill" style="width:' + Math.round(100 * r.actual_score / max) + '%"></span>' +
+          (hasTarget ? '<span class="s-meter-target" style="left:' + Math.round(100 * r.target_score / max) + '%"></span>' : '') + '</div>' +
+          '<div class="s-meta">' + (hasTarget ? 'My target was ' + esc(r.target_score) + '. ' + (met ? 'I reached my target.' : 'I have not reached my target yet.') : 'I did not set a target.') + '</div>' +
+          (r.process_goal ? '<div class="s-meta">My plan: ' + esc(r.process_goal) + '</div>' : '') +
+          '<label class="s-label">What did I learn from this result? What will I do next?' +
+          '<textarea class="s-input" rows="2" maxlength="1000" data-rec="' + esc(r.record_id) + '">' + esc(r.gap_reflection) + '</textarea></label>' +
+          '<button class="s-save s-secondary" data-save-rec="' + esc(r.record_id) + '">Save reflection</button></div>';
+      }).join('') + '</div>';
+    }
+
+    function wireResults() {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-save-rec]'), function (b) {
+        b.onclick = function () {
+          var id = b.getAttribute('data-save-rec');
+          busy(true);
+          call('api_saveGapReflection', state.viewAs, id, document.querySelector('[data-rec="' + id + '"]').value).then(function (res) {
+            port = res.portfolio;
+            busy(false);
+            toast('Reflection saved.');  // no redraw, so other unsaved reflections are kept
+          }).catch(fail);
+        };
+      });
+    }
+
+    // ---------- My Growth: photos ----------
+
+    var PLACEHOLDER_LABEL = { artwork: 'Artwork', science: 'Science', sports: 'Sports', cca: 'CCA', via: 'VIA', writing: 'Writing' };
+
+    function growthBlock(s) {
+      var photoItems = s.items.filter(function (it) { return it.response_type === 'Photo'; });
+      var html = '';
+      if (photoItems.length) {
+        html += '<div class="s-card"><h2>Add a photo</h2><p class="muted">' + esc(photoItems[0].prompt_text) +
+          ' Please do not upload photos that show faces.</p>' +
+          '<form id="pForm" class="s-photo-form">' +
+          '<label class="s-label">Photo <input id="pFile" type="file" accept="image/jpeg,image/png"></label>' +
+          '<img id="pPreview" class="s-preview" alt="Preview of the chosen photo" hidden>' +
+          '<label class="s-label">What does it show, and why are you proud of it? <input id="pCaption" class="s-input" maxlength="200"></label>' +
+          '<div class="s-row"><label class="s-label">Which goal does it link to? <select id="pGoal" class="s-input"><option value="">None</option>' +
+          port.goalOptions.map(function (g) { return '<option value="' + esc(g.code) + '">' + esc(g.label.length > 70 ? g.label.slice(0, 67) + '...' : g.label) + '</option>'; }).join('') +
+          '</select></label>' +
+          '<label class="s-label">For <select id="pCycle" class="s-input">' + photoItems.map(function (it) {
+            return '<option value="' + esc(it.cycle) + '">' + esc(it.cycle) + (it.response ? ' (replace)' : '') + '</option>';
+          }).join('') + '</select></label></div>' +
+          '<div class="s-actions"><button class="s-save s-primary" type="submit">Add my photo</button></div></form></div>';
+      }
+      html += '<h2 class="s-cycle">My photos</h2>';
+      if (!s.evidence.length) return html + '<div class="s-card muted">You have not added any photos yet.</div>';
+      html += '<div class="s-gallery">' + s.evidence.map(function (e) {
+        var ph = String(e.file_path).indexOf('placeholder:') === 0 ? String(e.file_path).slice(12) : '';
+        return '<figure class="s-photo">' +
+          (ph ? '<div class="s-placeholder s-ph-' + esc(ph) + '"><span>' + esc(PLACEHOLDER_LABEL[ph] || 'Photo') + '</span><small>Sample image</small></div>'
+              : '<div class="s-placeholder s-loading" data-ev="' + esc(e.evidence_id) + '"><span>Loading photo</span></div>') +
+          '<figcaption>' + esc(e.caption) + '<div class="s-meta">' + esc(e.created_at) + '</div></figcaption></figure>';
+      }).join('') + '</div>';
+      return html;
+    }
+
+    // Shrinks the photo in the browser so uploads stay small and quick.
+    function resize(file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onerror = function () { reject(new Error('Could not read that file.')); };
+        reader.onload = function () {
+          var img = new Image();
+          img.onerror = function () { reject(new Error('Please choose a JPEG or PNG photo.')); };
+          img.onload = function () {
+            var scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+            var c = document.createElement('canvas');
+            c.width = Math.round(img.width * scale);
+            c.height = Math.round(img.height * scale);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL('image/jpeg', 0.82));
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function wireGrowth() {
+      var dataUrl = null;
+      if ($('pFile')) {
+        $('pFile').onchange = function () {
+          var f = $('pFile').files[0];
+          if (!f) return;
+          resize(f).then(function (url) {
+            dataUrl = url;
+            $('pPreview').src = url;
+            $('pPreview').hidden = false;
+          }).catch(fail);
+        };
+        $('pForm').onsubmit = function (e) {
+          e.preventDefault();
+          if (!dataUrl) { toast('Please choose a photo first.', true); return; }
+          busy(true);
+          call('api_uploadEvidence', state.viewAs, {
+            cycle: $('pCycle').value, dataUrl: dataUrl, caption: $('pCaption').value, linked_goal: $('pGoal').value
+          }).then(function (res) {
+            port = res.portfolio;
+            toast('Photo added. Well done!');
+            openSection(current);
+          }).catch(fail);
+        };
+      }
+      Array.prototype.forEach.call(document.querySelectorAll('[data-ev]'), function (box) {
+        call('api_getEvidenceImage', state.viewAs, box.getAttribute('data-ev')).then(function (url) {
+          if (url) box.outerHTML = '<img class="s-img" src="' + url + '" alt="">';
+        }).catch(function () { box.innerHTML = '<span>Photo unavailable</span>'; });
+      });
+    }
+
+    // ---------- Feedback ----------
+
+    function feedbackBlock(comments) {
+      if (!comments.length) return '<div class="s-card muted">Your teachers have not written any comments yet.</div>';
+      return comments.map(function (c) {
+        return '<div class="s-card s-comment"><div class="s-meta">' + esc(c.about) + '</div><p>' + esc(c.comment_text) + '</p>' +
+          '<div class="s-meta">' + esc(c.created_at) + '</div></div>';
+      }).join('');
+    }
+
+    return {
+      show: function (p) { port = p; renderHome(); }
+    };
+  })();
+</script>

@@ -73,6 +73,18 @@ var Access = (function () {
     return CONFIG.SUPPORT_FLAG_ROLES.indexOf(user.role) >= 0;
   }
 
+  /** The access matrix code (E, C, V, A, N and so on) this user has for one section. */
+  function sectionCode(user, section) {
+    var row = CONFIG.ACCESS_MATRIX[user.role];
+    return row && row[section] ? row[section] : 'N';
+  }
+
+  /** Throws unless the user is a student acting on their own portfolio. */
+  function assertStudentSelf(user) {
+    if (user.role !== 'Student') throw new Error('Access denied: only a student can change their own portfolio.');
+    return user.id;
+  }
+
   /** The access matrix row for this role, with plain language labels. */
   function matrixRow(user) {
     var row = CONFIG.ACCESS_MATRIX[user.role] || {};
@@ -98,6 +110,8 @@ var Access = (function () {
     studentIdsInScope: studentIdsInScope,
     assertCanSeeStudent: assertCanSeeStudent,
     canSeeSupportFlags: canSeeSupportFlags,
+    sectionCode: sectionCode,
+    assertStudentSelf: assertStudentSelf,
     matrixRow: matrixRow,
     describeScope: describeScope
   };

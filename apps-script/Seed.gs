@@ -216,7 +216,10 @@ function buildDemoData_() {
    [14, 'placeholder:via', 'Making cards for the elderly at the community centre.', 'GL02'],
    [20, 'placeholder:writing', 'My composition that was read out in class.', 'GL01']
   ].forEach(function (e, k) {
-    t.Evidence.push(['EV' + pad(k + 1, 3), sid(e[0]), 'My Growth', e[1], e[2], e[3], YEAR, stamp(3, 1, 20)]);
+    var evId = 'EV' + pad(k + 1, 3), when = stamp(3, 1, 20);
+    t.Evidence.push([evId, sid(e[0]), 'My Growth', e[1], e[2], e[3], YEAR, when]);
+    // The photo question (GR01) for Term 1 end is answered by this photo.
+    reflect(e[0], 'Term 1 end', 'GR01', evId, '', when);
   });
 
   function reflectionRef(i, code) {

@@ -23,6 +23,20 @@ var CONFIG = {
 
   SECTIONS: ['About Me', 'My Goals', 'Check-ins', 'My Learning', 'My Growth', 'Feedback'],
 
+  // Cycles students can currently answer. A real system would let an admin open and close these.
+  OPEN_CYCLES: ['Start of year', 'Term 1 end'],
+
+  // The assessment students set score targets for, and its maximum score per subject.
+  TARGET_ASSESSMENT: { name: 'WA2', max: { 'English': 30, 'Mathematics': 25, 'Science': 20, 'Mother Tongue': 30 } },
+  LEVELS_WITH_SCORE_TARGETS: ['P3', 'P4', 'P5', 'P6'],
+
+  // Longest answer accepted, in characters.
+  TEXT_LIMITS: { 'Short text': 200, 'Long text': 1500, caption: 200, process_goal: 300, gap_reflection: 1000 },
+
+  // Largest photo accepted after the browser has resized it.
+  UPLOAD_MAX_BYTES: 3 * 1024 * 1024,
+  UPLOAD_FOLDER_NAME: 'PHPPS Portfolio Uploads (fictional data)',
+
   // Levels at which each subject is taught. Used for HOD scope (own subject, all levels).
   SUBJECT_LEVELS: {
     'English': ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'],

@@ -45,6 +45,11 @@ The prototype exists to (1) let my school leader see and click through the exper
 9. Safety scan: on submit, a keyword match sets Flagged, otherwise Cleared. The level Year Head or School Leader can clear a Flagged item. Flagged text is hidden from everyone else, including the Form Teacher.
 10. AI input: initials and student_id as identifiers, plus non-sensitive response text with capitalised names removed. Sensitive check-in answers are never sent.
 
+11. Check-in answers cannot be changed after they are sent, so a disclosure cannot be overwritten before the Year Head sees it. Other sections stay editable while their cycle is open. A Flagged answer stays Flagged until cleared.
+12. Open cycles for the demo: Start of year and Term 1 end (CONFIG.OPEN_CYCLES). Score targets are set for WA2 (CONFIG.TARGET_ASSESSMENT).
+13. A photo answers the Photo prompt: it creates an Evidence row (file in a private Drive folder, file_path `drive:<id>`) and a Reflections row whose response_value is the evidence_id. Images are served only through the server after an access check.
+14. Data.gs writes all text with a leading apostrophe so Sheets keeps it exactly as typed (no dates from "3/4", no formulas from "=").
+
 ## Fake data to seed
 
 - One class: **4F1**, level P4, year 2027, 30 students with fictional, Singapore-plausible names, initials and student_ids in the form S2027-0001.

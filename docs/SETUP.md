@@ -24,8 +24,11 @@ Do not share this Sheet with anyone. Teachers and students will reach the data o
 | Data.gs | **+**, **Script**, type `Data` |
 | Access.gs | **+**, **Script**, type `Access` |
 | Seed.gs | **+**, **Script**, type `Seed` |
+| Scan.gs | **+**, **Script**, type `Scan` |
+| Portfolio.gs | **+**, **Script**, type `Portfolio` |
 | Index.html | **+**, **HTML**, type `Index` |
 | Styles.html | **+**, **HTML**, type `Styles` |
+| StudentView.html | **+**, **HTML**, type `StudentView` |
 | Client.html | **+**, **HTML**, type `Client` |
 
 The editor adds `.gs` or `.html` itself, so type the name without it. You do not need `appsscript.json`.
@@ -56,6 +59,16 @@ For the demo with your school leader you can later change access to "Anyone with
 ## Updating to a later milestone
 
 Paste the changed files, save, then choose **Deploy > Manage deployments**, click the pencil icon, set Version to **New version**, and click **Deploy**. The URL stays the same.
+
+## Updating from Milestone 1 to Milestone 2
+
+1. In the Script editor, create three new files and paste their contents from GitHub: **Scan.gs**, **Portfolio.gs** and **StudentView.html**.
+2. Replace the contents of these existing files with the new versions from GitHub: **Config.gs**, **Data.gs**, **Access.gs**, **Seed.gs**, **Index.html**, **Styles.html** and **Client.html**. Code.gs has not changed.
+3. Save, then run **setupDemoData** once. The demo data gained a few rows linking the sample photos to the photo question.
+4. Google asks you to authorise again, because the app now stores photos in your Drive. Allow it as before.
+5. Deploy a new version (see "Updating to a later milestone" above).
+
+Uploaded photos go into a private folder in your Drive called **PHPPS Portfolio Uploads (fictional data)**. The app creates it the first time a photo is added. Do not share it.
 
 ## If something goes wrong
 

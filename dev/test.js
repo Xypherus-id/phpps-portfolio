@@ -104,10 +104,15 @@ test('a web visitor cannot run the demo data reset', () => {
   assert.throws(() => gas.setupDemoData(), /Only the owner/);
 });
 
-test('text that looks like a formula is stored as plain text', () => {
-  gas.Data.insert('Evidence', { evidence_id: 'EV999', caption: '=IMPORTXML("http://x","//a")' });
+test('text is written as plain text, so formulas and dates are kept exactly as typed', () => {
+  gas.Data.insert('Evidence', { evidence_id: 'EV999', caption: '=IMPORTXML("http://x","//a")', linked_goal: '3/4', year: 2027 });
   const sheet = gas._ss._sheets.Evidence.values;
-  assert.strictEqual(sheet[sheet.length - 1][4], '\'=IMPORTXML("http://x","//a")');
+  const raw = sheet[sheet.length - 1];
+  assert.strictEqual(raw[4], '\'=IMPORTXML("http://x","//a")', 'written with the text marker');
+  assert.strictEqual(raw[5], "'3/4");
+  assert.strictEqual(raw[6], 2027, 'numbers stay numbers');
+  const back = gas.Data.all('Evidence').find(e => e.evidence_id === 'EV999');
+  assert.strictEqual(back.caption, '=IMPORTXML("http://x","//a")', 'read back without the marker');
   sheet.pop();
   gas.Data.reset();
 });

@@ -32,9 +32,11 @@ var Data = (function () {
     return value === null || value === undefined ? '' : value;
   }
 
-  // Text starting with = + - or @ would be run by Sheets as a formula; store it as plain text instead.
+  // Text is written with a leading apostrophe, which tells Sheets to keep it exactly as typed.
+  // Without it, Sheets would turn "3/4" into a date and run text starting with = as a formula.
+  // The apostrophe is not stored; reading the cell back gives the original text.
   function safe_(value) {
-    return typeof value === 'string' && /^[=+\-@]/.test(value) ? "'" + value : value;
+    return typeof value === 'string' && value !== '' ? "'" + value : value;
   }
 
   /** All rows of a table, as objects keyed by column name. Returns copies. */
@@ -64,6 +66,26 @@ var Data = (function () {
     sheet_(table).appendRow(cols.map(function (c) { return record[c] === undefined ? '' : safe_(record[c]); }));
     delete cache[table];
     return record;
+  }
+
+  /** Adds several rows in one write, which is much faster than one insert per row. */
+  function insertMany(table, records) {
+    if (!records.length) return records;
+    var cols = CONFIG.TABLES[table];
+    var sh = sheet_(table);
+    var rows = records.map(function (rec) {
+      return cols.map(function (c) { return rec[c] === undefined ? '' : safe_(rec[c]); });
+    });
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, cols.length).setValues(rows);
+    delete cache[table];
+    return records;
+  }
+
+  /** Runs fn while holding a lock, so two people saving at once cannot get the same new id. */
+  function withLock(fn) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try { return fn(); } finally { lock.releaseLock(); }
   }
 
   /** Changes some columns of the row whose first column equals id. */
@@ -117,5 +139,8 @@ var Data = (function () {
   /** Forgets cached rows. Called at the start of each request. */
   function reset() { cache = {}; }
 
-  return { all: all, where: where, insert: insert, update: update, nextId: nextId, checkSchema: checkSchema, reset: reset };
+  return {
+    all: all, where: where, insert: insert, insertMany: insertMany, update: update,
+    nextId: nextId, withLock: withLock, checkSchema: checkSchema, reset: reset
+  };
 })();
