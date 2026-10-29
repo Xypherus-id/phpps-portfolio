@@ -4,6 +4,6 @@
   "scripts": {
     "test": "node --test dev/test.js",
     "dev": "node dev/server.js 8080",
-    "seed": "python3 seed/generate_seed.py"
+    "seed": "node dev/export-seed.js && python3 seed/to_xlsx.py"
   }
 }

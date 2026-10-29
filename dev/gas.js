@@ -1,15 +1,15 @@
 // Loads the real apps-script/*.gs files into a Node.js sandbox with a fake
-// SpreadsheetApp built from seed/seed.json. Development aid only.
+// SpreadsheetApp filled by buildDemoData_() in Seed.gs. Development aid only.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
 
-function fakeSpreadsheet(seed) {
+function fakeSpreadsheet(columns, data) {
   const sheets = {};
-  for (const [name, cols] of Object.entries(seed.columns)) {
-    const values = [cols.slice(), ...seed.tables[name].map(r => cols.map(c => r[c]))];
+  for (const [name, cols] of Object.entries(columns)) {
+    const values = [cols.slice(), ...data[name].map(r => r.slice())];
     sheets[name] = {
       values,
       getDataRange: () => ({ getValues: () => values.map(r => r.slice()) }),
@@ -25,15 +25,15 @@ function fakeSpreadsheet(seed) {
 }
 
 function load() {
-  const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'seed', 'seed.json'), 'utf8'));
-  const ss = fakeSpreadsheet(seed);
+  const ss = { getSheetByName: () => null };
   const pad = n => String(n).padStart(2, '0');
   const context = {
     console,
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) },
     Utilities: { formatDate: d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}` },
-    Logger: { log: m => console.log(m) }
+    Logger: { log: m => console.log(m) },
+    Session: { getActiveUser: () => ({ getEmail: () => '' }), getEffectiveUser: () => ({ getEmail: () => 'owner@example.com' }) }
   };
   vm.createContext(context);
   const dir = path.join(ROOT, 'apps-script');
@@ -41,6 +41,9 @@ function load() {
     .map(f => `// ${f}\n` + fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   // Apps Script shares one global scope across files; expose the modules for the harness.
   vm.runInContext(code + '\n;this.Data = Data; this.Access = Access; this.CONFIG = CONFIG;', context, { filename: 'apps-script' });
+  // Fill the fake Sheet with the same demo data that Seed.gs writes in Google.
+  const filled = fakeSpreadsheet(context.CONFIG.TABLES, context.buildDemoData_());
+  Object.assign(ss, filled);
   context._ss = ss;
   return context;
 }

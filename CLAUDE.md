@@ -24,6 +24,7 @@ The prototype exists to (1) let my school leader see and click through the exper
 
 **Google Sheets as the database, an Apps Script web app as the main front end, AppSheet as an optional comparison front end on the same Sheet.** This replaces the original Node.js suggestion: nothing needs installing on a school laptop, and the prototype tests the likely final platform directly.
 
+- The Sheet is "PHPPS Portfolio Prototype (fictional data)" in the owner's Drive (id 1Aac9GIVfqO1Z9OYJs-6O58QuD-rfGrepYG_Y081xpos). `Seed.gs` > setupDemoData fills or resets it.
 - The Sheet holds the eight tables as eight tabs, one per table, with the exact column names below. Only the owner (Idris) has access to the Sheet itself. Teachers and students reach data only through the web app, which runs as the owner and enforces the access matrix in server-side script.
 - The Apps Script project is bound to the Sheet (Extensions > Apps Script). Source files live in `apps-script/` in this repository and are pasted into the Script editor.
 - All Sheet reads and writes go through `Data.gs`. All permission decisions go through `Access.gs`.

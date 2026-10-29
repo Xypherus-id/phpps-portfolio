@@ -32,6 +32,11 @@ var Data = (function () {
     return value === null || value === undefined ? '' : value;
   }
 
+  // Text starting with = + - or @ would be run by Sheets as a formula; store it as plain text instead.
+  function safe_(value) {
+    return typeof value === 'string' && /^[=+\-@]/.test(value) ? "'" + value : value;
+  }
+
   /** All rows of a table, as objects keyed by column name. Returns copies. */
   function all(table) {
     if (!cache[table]) {
@@ -56,7 +61,7 @@ var Data = (function () {
   /** Adds one row. Missing columns are left blank. Returns the stored object. */
   function insert(table, record) {
     var cols = CONFIG.TABLES[table];
-    sheet_(table).appendRow(cols.map(function (c) { return record[c] === undefined ? '' : record[c]; }));
+    sheet_(table).appendRow(cols.map(function (c) { return record[c] === undefined ? '' : safe_(record[c]); }));
     delete cache[table];
     return record;
   }
@@ -71,7 +76,7 @@ var Data = (function () {
         Object.keys(changes).forEach(function (col) {
           var c = header.indexOf(col);
           if (c < 0) throw new Error('Unknown column ' + col + ' in ' + table);
-          sh.getRange(r + 1, c + 1).setValue(changes[col]);
+          sh.getRange(r + 1, c + 1).setValue(safe_(changes[col]));
         });
         delete cache[table];
         return true;

@@ -83,3 +83,31 @@ test('the role switcher lists every seeded role', () => {
     ['Student', 'Form Teacher', 'Subject Teacher', 'YH', 'AYH', 'LM', 'HOD', 'SENO', 'School Leader', 'Admin']);
   assert.strictEqual(b.people['Subject Teacher'].length, 4);
 });
+
+test('the demo data has the shape the brief asks for', () => {
+  const d = gas.buildDemoData_();
+  assert.strictEqual(d.Students.length, 30);
+  const initials = d.Students.map(s => s[3]);
+  assert.strictEqual(new Set(initials).size, 30, 'initials are unique');
+  const withTerm1 = new Set(d.Reflections.filter(r => r[3] === 'Term 1 end').map(r => r[1]));
+  assert.strictEqual(30 - withTerm1.size, 5, 'five students have not submitted Term 1');
+  assert.strictEqual(d.Reflections.filter(r => r[8] === 'Flagged').length, 3);
+  const targets = d.Academic.filter(r => r[6] !== '');
+  assert.ok(targets.some(r => r[8] >= r[6]) && targets.some(r => r[8] < r[6]), 'mix above and below target');
+  assert.ok(d.Feedback.some(f => f[7] === 'Draft' && f[6] === 'AI draft'));
+  // No identity numbers: nothing shaped like an NRIC or Birth Certificate number.
+  assert.ok(!/\b[STFGM]\d{7}[A-Z]\b/.test(JSON.stringify(d)));
+  assert.deepStrictEqual(JSON.stringify(d), JSON.stringify(gas.buildDemoData_()), 'same data on every reset');
+});
+
+test('a web visitor cannot run the demo data reset', () => {
+  assert.throws(() => gas.setupDemoData(), /Only the owner/);
+});
+
+test('text that looks like a formula is stored as plain text', () => {
+  gas.Data.insert('Evidence', { evidence_id: 'EV999', caption: '=IMPORTXML("http://x","//a")' });
+  const sheet = gas._ss._sheets.Evidence.values;
+  assert.strictEqual(sheet[sheet.length - 1][4], '\'=IMPORTXML("http://x","//a")');
+  sheet.pop();
+  gas.Data.reset();
+});
